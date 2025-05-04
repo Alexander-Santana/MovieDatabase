@@ -1,55 +1,44 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Text.Json; // Requires .NET Core 3.1+ or .NET 5+
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Drawing; // For handling images
+using System.Drawing;
 
-// Add this namespace for handling images from URLs
 using System.Net;
 using System.IO;
 
 
-namespace MovieBrowserApp // Replace with your project's namespace
+namespace MovieBrowserApp
 {
-    public partial class Form1 : Form // Make sure this matches your form class name
+    public partial class Form1 : Form
     {
-        // --- Configuration ---
-        private const string TmdbApiKey = "YOUR_TMDB_API_KEY"; // <<== REPLACE WITH YOUR KEY!
+        private const string TmdbApiKey = "YOUR_TMDB_API_KEY";
         private const string TmdbApiBaseUrl = "https://api.themoviedb.org/3/";
-        private const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/w500"; // w500 is a common size
+        private const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/w500";
 
-
-        // HttpClient should ideally be a single instance throughout your application's lifetime
         private static readonly HttpClient client = new HttpClient();
 
 
         public Form1()
         {
             InitializeComponent();
-            // Optional: Configure the ListBox to store movie IDs while displaying titles
-            lstResults.DisplayMember = "Title"; // Display the Title property
-            lstResults.ValueMember = "Id";     // Store the Id property behind the scenes
+            lstResults.DisplayMember = "Title";
+            lstResults.ValueMember = "Id";
         }
 
-        // --- JSON Model Classes ---
-        // These classes represent the structure of the JSON we expect from the API.
-        // We only define the properties we need.
-
-        // Model for a single movie search result
         public class MovieSearchResult
         {
-            public int Id { get; set; } // Used for fetching details later
+            public int Id { get; set; }
             public string Title { get; set; }
-            [JsonPropertyName("release_date")] // Map "release_date" from JSON to ReleaseDate property
+            [JsonPropertyName("release_date")]
             public string ReleaseDate { get; set; }
-            [JsonPropertyName("poster_path")] // Map "poster_path" for image URL
+            [JsonPropertyName("poster_path")]
             public string PosterPath { get; set; }
-            public string Overview { get; set; } // Synopsis
+            public string Overview { get; set; }
         }
 
-        // Model for the overall search results response
         public class MovieSearchResponse
         {
             public int Page { get; set; }
@@ -60,7 +49,6 @@ namespace MovieBrowserApp // Replace with your project's namespace
             public int TotalResults { get; set; }
         }
 
-        // Model for movie details response
         public class MovieDetails
         {
             public int Id { get; set; }
@@ -70,19 +58,14 @@ namespace MovieBrowserApp // Replace with your project's namespace
              [JsonPropertyName("poster_path")]
             public string PosterPath { get; set; }
             public string Overview { get; set; }
-            public double VoteAverage { get; set; } // Example of another field
-            // Add other fields you want to display (genres, runtime, etc.)
-            // public List<Genre> Genres { get; set; } // Would need a Genre class
+            public double VoteAverage { get; set; }
         }
 
-        // --- API Call Methods ---
-
-        // Asynchronous method to search for movies
         private async Task<MovieSearchResponse> SearchMoviesAsync(string query)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
-                return null; // Don't search for empty queries
+                return null;
             }
 
             string requestUrl = $"{TmdbApiBaseUrl}search/movie?api_key={TmdbApiKey}&query={Uri.EscapeDataString(query)}";
@@ -90,11 +73,10 @@ namespace MovieBrowserApp // Replace with your project's namespace
             try
             {
                 HttpResponseMessage response = await client.GetAsync(requestUrl);
-                response.EnsureSuccessStatusCode(); // Throw if not a success code (200-299)
+                response.EnsureSuccessStatusCode();
 
                 string jsonResponse = await response.Content.ReadAsStringAsync();
 
-                // Deserialize the JSON response into our C# object structure
                 MovieSearchResponse searchResults = JsonSerializer.Deserialize<MovieSearchResponse>(jsonResponse);
 
                 return searchResults;
@@ -116,7 +98,6 @@ namespace MovieBrowserApp // Replace with your project's namespace
             }
         }
 
-        // Asynchronous method to get movie details by ID
         private async Task<MovieDetails> GetMovieDetailsAsync(int movieId)
         {
              if (movieId <= 0)
@@ -129,7 +110,7 @@ namespace MovieBrowserApp // Replace with your project's namespace
             try
             {
                 HttpResponseMessage response = await client.GetAsync(requestUrl);
-                 response.EnsureSuccessStatusCode(); // Throw if not a success code
+                 response.EnsureSuccessStatusCode();
 
                 string jsonResponse = await response.Content.ReadAsStringAsync();
 
@@ -154,7 +135,6 @@ namespace MovieBrowserApp // Replace with your project's namespace
             }
         }
 
-        // Asynchronous method to load image from URL
          private async Task<Image> LoadImageFromUrlAsync(string imageUrl)
         {
              if (string.IsNullOrWhiteSpace(imageUrl))
@@ -164,19 +144,17 @@ namespace MovieBrowserApp // Replace with your project's namespace
 
             try
             {
-                using (var http = new HttpClient()) // Use a local HttpClient for images or the shared one
+                using (var http = new HttpClient())
                 using (var response = await http.GetAsync(imageUrl))
                 {
-                    response.EnsureSuccessStatusCode(); // Throw if not success
+                    response.EnsureSuccessStatusCode();
 
                     using (var stream = await response.Content.ReadAsStreamAsync())
                     {
-                        // Creating image from stream directly can lock the file,
-                        // so load it into memory first.
                         using (var memStream = new MemoryStream())
                         {
                             await stream.CopyToAsync(memStream);
-                            memStream.Position = 0; // Reset stream position
+                            memStream.Position = 0;
                             return Image.FromStream(memStream);
                         }
                     }
@@ -185,18 +163,13 @@ namespace MovieBrowserApp // Replace with your project's namespace
              catch (Exception ex)
             {
                  System.Diagnostics.Debug.WriteLine($"Error loading image: {ex.Message}");
-                 // You might want to display a default "image not found" image
                 return null;
             }
         }
 
-
-        // --- Event Handlers (Connect these to your UI elements) ---
-
-        // Example: Connect this method to your Search Button's Click event
         private async void btnSearch_Click(object sender, EventArgs e)
         {
-            string searchTerm = txtSearch.Text.Trim(); // Get text from your search TextBox
+            string searchTerm = txtSearch.Text.Trim();
 
             if (string.IsNullOrEmpty(searchTerm))
             {
@@ -204,24 +177,18 @@ namespace MovieBrowserApp // Replace with your project's namespace
                 return;
             }
 
-            // Clear previous results and details
             lstResults.Items.Clear();
-            ClearMovieDetails(); // Implement a method to clear detail labels/picturebox
+            ClearMovieDetails();
 
-            // Perform the search asynchronously
             MovieSearchResponse results = await SearchMoviesAsync(searchTerm);
 
-            // Update the UI with results
             if (results != null && results.Results != null)
             {
                 if (results.Results.Count > 0)
                 {
-                    // Add results to your ListBox
                     foreach (var movie in results.Results)
                     {
-                         // Add the MovieSearchResult object itself if using DisplayMember/ValueMember
                         lstResults.Items.Add(movie);
-                        // Or just add the title if not using DisplayMember/ValueMember: lstResults.Items.Add(movie.Title);
                     }
                 }
                 else
@@ -231,80 +198,64 @@ namespace MovieBrowserApp // Replace with your project's namespace
             }
         }
 
-        // Example: Connect this method to your Results ListBox's SelectedIndexChanged event
         private async void lstResults_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (lstResults.SelectedItem != null)
             {
-                // Assuming you added MovieSearchResult objects to the ListBox
                 MovieSearchResult selectedMovie = (MovieSearchResult)lstResults.SelectedItem;
 
-                // Fetch details for the selected movie asynchronously
                 MovieDetails details = await GetMovieDetailsAsync(selectedMovie.Id);
 
-                // Update UI with details
                 if (details != null)
                 {
-                    lblTitle.Text = details.Title; // Update your Title Label
-                    lblReleaseDate.Text = $"Release Date: {details.ReleaseDate}"; // Update Release Date Label
-                    lblOverview.Text = details.Overview; // Update Overview Label
-                    // You might want to add word wrap for the overview label
+                    lblTitle.Text = details.Title;
+                    lblReleaseDate.Text = $"Release Date: {details.ReleaseDate}";
+                    lblOverview.Text = details.Overview;
 
-                    // Load and display the poster image
+
                     if (!string.IsNullOrEmpty(details.PosterPath))
                     {
                         string imageUrl = $"{TmdbImageBaseUrl}{details.PosterPath}";
                         Image posterImage = await LoadImageFromUrlAsync(imageUrl);
                         if (posterImage != null)
                         {
-                            picPoster.Image = posterImage; // Set your PictureBox image
-                             // picPoster.SizeMode = PictureBoxSizeMode.Zoom; // Adjust size mode as needed
+                            picPoster.Image = posterImage;
                         }
                         else
                         {
-                             picPoster.Image = null; // Clear image if loading failed
-                             // Optionally load a default "image not found" image
+                             picPoster.Image?.Dispose();
+                             picPoster.Image = null;
                         }
                     }
                     else
                     {
-                         picPoster.Image = null; // Clear image if no poster path
-                         // Optionally load a default "no poster" image
+                         picPoster.Image?.Dispose();
+                         picPoster.Image = null;
                     }
                 }
                 else
                 {
-                     ClearMovieDetails(); // Clear details if fetching failed
+                     ClearMovieDetails();
                 }
             }
             else
             {
-                // If nothing is selected, clear details
                 ClearMovieDetails();
             }
         }
 
-        // Helper method to clear the detail display area
         private void ClearMovieDetails()
         {
             lblTitle.Text = "";
             lblReleaseDate.Text = "";
             lblOverview.Text = "";
-            picPoster.Image?.Dispose(); // Dispose previous image if any
+            picPoster.Image?.Dispose();
             picPoster.Image = null;
-            // Clear other detail labels as needed
         }
 
-        // --- Optional: Dispose HttpClient on form closing ---
          private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            // Dispose HttpClient when the application exits
-            // Note: For a truly long-running app or if using .NET Core 2.1 or earlier,
-            // consider HttpClientFactory. In modern .NET (3.1+), a single static HttpClient is fine.
-            // client.Dispose(); // You can uncomment this, but the static instance lives as long as the app domain.
-            // Better to dispose images loaded into PictureBoxes
             picPoster.Image?.Dispose();
         }
-
     }
 }
